@@ -58,7 +58,7 @@ body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area
 #app { display: none; position: relative; }
 .shell { max-width: 1440px; margin: 0 auto; padding: 16px 16px calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px)); }
 
-.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); margin-bottom: 16px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); margin-bottom: 16px; flex-wrap: wrap; }
 .brand-block { display: flex; align-items: center; gap: 12px; }
 .brand-mark { width: 44px; height: 44px; border-radius: 14px; background: var(--white); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #000; flex-shrink: 0; }
 .brand-name-main { font-size: 18px; font-weight: 900; letter-spacing: -.2px; color: var(--white); }
@@ -69,9 +69,19 @@ body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area
 
 .btn { padding: 10px 14px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 700; cursor: pointer; transition: .2s; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .btn:hover { background: var(--surface-3); border-color: var(--border-glow); transform: translateY(-1px); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
 .btn-primary { border-color: transparent; color: #000; background: var(--white); }
 .btn-primary:hover { background: #e8e8e8; }
 .btn-success { border-color: rgba(74,222,128,.25); color: var(--lime); background: rgba(74,222,128,.08); }
+
+.spin { animation: fa-spin 1.5s linear infinite; }
+
+/* Toast Notifications Container */
+#toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.toast { pointer-events: auto; padding: 12px 18px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--border); color: var(--white); font-size: 13px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,.5); animation: toastIn .3s cubic-bezier(.2,.9,.2,1); display: flex; align-items: center; gap: 10px; }
+.toast.success { border-color: rgba(74,222,128,.4); color: var(--lime); }
+.toast.error { border-color: rgba(248,113,113,.4); color: var(--red); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
 
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
 .stat-card { padding: 18px 16px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); transition: .2s; }
@@ -113,13 +123,6 @@ body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area
 .metric-box span { display: block; color: var(--text-muted); font-size: 8px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
 .metric-box strong { display: block; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--text); }
 .metric-box.gain strong { color: var(--lime); }
-.progress-block { padding: 12px 14px; border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--border); margin-bottom: 12px; }
-.progress-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 10px; color: var(--text-muted); letter-spacing: .3px; flex-wrap: wrap; gap: 4px; }
-.progress-top b { color: var(--white); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
-.progress-track { height: 7px; border-radius: 100px; background: rgba(255,255,255,.07); overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, rgba(255,255,255,.4), var(--white)); transition: width .8s cubic-bezier(.2,.9,.2,1); }
-.progress-bot { display: flex; justify-content: space-between; margin-top: 6px; font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); flex-wrap: wrap; gap: 4px; }
-.progress-bot .pct { color: var(--white); font-weight: 800; }
 
 .modal-bg { position: fixed; inset: 0; z-index: 5000; display: none; align-items: flex-end; justify-content: center; padding: 0; background: rgba(0,0,0,.8); backdrop-filter: blur(12px); }
 .modal-bg.active { display: flex; }
@@ -161,6 +164,8 @@ body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area
 </style>
 </head>
 <body>
+
+<div id="toast-container"></div>
 
 <!-- TELEGRAM JOIN POPUP -->
 <div class="modal-bg" id="telegram-modal">
@@ -209,7 +214,8 @@ body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area
                 </div>
             </div>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn" id="btnAutoJoin"><i class="fa-solid fa-people-group"></i><span class="hide-sm"> Auto Join Clan</span></button>
             <button class="btn" onclick="fetchStats()"><i class="fa-solid fa-rotate"></i><span class="hide-sm"> Refresh</span></button>
             <button class="btn btn-success" onclick="openCreateTeamModal()"><i class="fa-solid fa-users-gear"></i><span class="hide-sm"> Create Team</span></button>
             <button class="btn" onclick="logoutSession()" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
@@ -313,11 +319,48 @@ body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area
 <script>
 const ACCESS_KEY = "HASIB";
 const SESSION_KEY = "HASIB";
-const EXP_TABLE = {1:0,2:48,3:202,4:544,5:1012,6:1844,7:2792,8:3800,9:4870,10:6004,11:7192,12:8448,13:9760,14:11140,15:12566,16:14060,17:15610,18:17224,19:18902,20:20632,21:22424,22:24278,23:26192,24:28166,25:30200,26:32294,27:34448,28:37804,29:41274,30:44870,31:48582,32:53394,33:58566,34:64096,35:69994,36:76460,37:83506,38:91128,39:99322,40:108092,41:120144,42:133266,43:147472,44:162760,45:179126,46:196572,47:215368,48:235516,49:257010,50:279860,51:304056,52:348318,53:394982,54:444044,55:495508,56:549364,57:633756,58:721744,59:813336,60:908522,61:1041438,62:1180352,63:1325266,64:1476184,65:1634300,66:1840946,67:2056594,68:2281242,69:2514880,70:2757530,71:3059506,72:3372284,73:3699456,74:4041030,75:4397002,76:4829104,77:5282204,78:5756304,79:6251408,80:6776502,81:7381324,82:8043154,83:8752982,84:9510808,85:10316338,86:11277190,87:12291748,88:13360304,89:14482858,90:15659418,91:17026708,92:18453950,93:19941280,94:21488570,95:23095858,96:24763138,97:26490428,98:28378704,99:30124996,100:32032884};
 
 let cachedAccounts = [];
 let cachedLogs = [];
-let clientStart = Date.now();
+const activeGuards = {};
+
+function $(id){ return document.getElementById(id); }
+
+function toast(msg, type = "info"){
+    const container = $("toast-container");
+    if(!container) return;
+    const t = document.createElement("div");
+    t.className = `toast ${type}`;
+    let icon = "fa-circle-info";
+    if(type === "success") icon = "fa-circle-check";
+    if(type === "error") icon = "fa-circle-exclamation";
+    t.innerHTML = `<i class="fa-solid ${icon}"></i><span>${esc(msg)}</span>`;
+    container.appendChild(t);
+    setTimeout(() => {
+        t.style.opacity = "0";
+        t.style.transform = "translateY(20px)";
+        setTimeout(() => t.remove(), 300);
+    }, 3500);
+}
+
+async function guard(name, fn){
+    if(activeGuards[name]) return;
+    activeGuards[name] = true;
+    try {
+        await fn();
+    } finally {
+        activeGuards[name] = false;
+    }
+}
+
+async function post(url, data){
+    const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    });
+    return await r.json();
+}
 
 function unlockApp(isRestore){
     const sc = document.getElementById("login-screen");
@@ -359,7 +402,6 @@ function login(e){
         err.innerText = "";
         try { localStorage.setItem(SESSION_KEY, key); } catch(ex){}
         unlockApp(false);
-        // Show Telegram join popup after login
         setTimeout(()=>{
             try { document.getElementById("telegram-modal").classList.add("active"); } catch(ex){}
         }, 600);
@@ -391,20 +433,16 @@ async function submitCreateTeam(e){
     btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Creating...';
     
     try {
-        const r = await fetch("/api/create_team", {
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body: JSON.stringify({region, clan_id: clan, count, password: "AGS_COMMUNITY"})
-        });
-        const d = await r.json();
+        const d = await post("/api/create_team", {region, clan_id: clan, count, password: "AGS_COMMUNITY"});
         if(d.ok){
             closeCreateTeamModal();
             setTimeout(fetchStats, 3000);
             setTimeout(fetchStats, 8000);
+            toast("Squad created successfully", "success");
         } else {
-            alert("Failed: " + (d.error || "Unknown"));
+            toast("Failed: " + (d.error || "Unknown"), "error");
         }
-    } catch(err){ alert("Network error"); }
+    } catch(err){ toast("Network error", "error"); }
     
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Create & Start';
@@ -562,6 +600,23 @@ function esc(s){
     if(s === null || s === undefined) return "";
     return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 }
+
+/* auto join saved accounts to their configured clans */
+$("btnAutoJoin").addEventListener("click", () => guard("autoJoinClan", async () => {
+  const b = $("btnAutoJoin");
+  b.disabled = true;
+  b.innerHTML = '<i class="fa-solid fa-circle-notch spin"></i>Joining...';
+  try{
+    const d = await post("/api/auto_join_clans", {});
+    if(d.ok) toast(d.msg || "Clan join process started", "success");
+    else toast(d.error || "Could not start clan join process", "error");
+  }catch(e){
+    toast("Backend connection failed", "error");
+  }finally{
+    b.disabled = false;
+    b.innerHTML = '<i class="fa-solid fa-people-group"></i>Auto Join Clan';
+  }
+}));
 </script>
 </body>
 </html>

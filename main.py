@@ -1981,6 +1981,76 @@ def _create_clan_payload(clan_id):
     except Exception as e:
         print_error(f"CLAN payload: {e}"); return None
 
+async def api_auto_join_clans(request):
+    """Start the saved-accounts clan join process without blocking the dashboard."""
+    if getattr(bot_state, "clan_joining", False):
+        return aiohttp.web.json_response(
+            {"ok": False, "error": "Clan join process is already running"}
+        )
+
+    bot_state.clan_joining = True
+async def api_auto_join_clans(request):
+    """Start the saved-accounts clan join process without blocking the dashboard."""
+    if getattr(bot_state, "clan_joining", False):
+        return aiohttp.web.json_response(
+            {"ok": False, "error": "Clan join process is already running"}
+        )
+
+    bot_state.clan_joining = True
+
+    async def _run():
+        try:
+            await auto_join_clans()
+        finally:
+            bot_state.clan_joining = False
+
+    asyncio.create_task(_run())
+    return aiohttp.web.json_response(
+        {"ok": True, "msg": "Clan join process started"}
+    )
+
+async def auto_join_clans():
+    try:
+        with open("accounts.json", "r", encoding="utf-8") as f:
+            accounts = json.load(f)
+
+        print_success(f"Loaded {len(accounts)} accounts")
+
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=15)
+        ) as session:
+
+            for account in accounts:
+                uid = account["uid"]
+                password = account["password"]
+                guild_id = account["clan_id"]
+
+                params = {
+                    "guild_id": guild_id,
+                    "uid": uid,
+                    "password": password
+                }
+
+                url = (
+                    "https://danger-guild-management-web.vercel.app/join?"
+                    + urlencode(params)
+                )
+
+                try:
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            print_success(f"Join request sent: {uid}")
+                        else:
+                            print_warning(
+                                f"Join failed: {uid} ({response.status})"
+                            )
+
+                except Exception as e:
+                    print_error(f"{uid}: {e}")
+
+    except Exception as e:
+        print_error(f"Account loading error: {e}")    
+    
 async def join_clan(jwt_token, clan_id):
     if not _CLAN_PB_AVAILABLE: return False
     try:
@@ -4076,6 +4146,7 @@ async def start_web_server():
     app.router.add_get("/api/stats", api_stats)
     app.router.add_get("/api/state", api_state)
     app.router.add_post("/api/create_team", api_create_team)
+    app.router.add_post("/api/auto_join_clans", api_auto_join_clans)    
     app.router.add_post("/api/account/add", api_account_add)
     app.router.add_post("/api/account/delete", api_account_delete)
     app.router.add_post("/api/account/refresh", api_account_refresh)
